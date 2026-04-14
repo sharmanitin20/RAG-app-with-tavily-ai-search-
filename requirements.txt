@@ -4,8 +4,6 @@ faiss-cpu
 sentence-transformers
 pymupdf
 markdown
-unstructured
-unstructured[pdf]
 unstructured[docx]
 langchain
 langchain-classic

@@ -1,3 +1,15 @@
+---
+title: Uploaded Files RAG
+emoji: 📚
+colorFrom: blue
+colorTo: indigo
+sdk: streamlit
+sdk_version: 1.55.0
+app_file: app.py
+pinned: false
+license: mit
+---
+
 # Uploaded Files RAG
 
 Streamlit RAG app that:
