@@ -8,9 +8,11 @@ unstructured
 unstructured[pdf]
 unstructured[docx]
 langchain
+langchain-classic
 langchain-community
 langchain-text-splitters
 langchain-huggingface
 langchain-groq
 tavily-python
 beautifulsoup4
+requests
