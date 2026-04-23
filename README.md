@@ -11,33 +11,36 @@ license: mit
 
 # Uploaded Files RAG
 
-Uploaded Files RAG is a document-grounded question answering application built with Streamlit, LangChain, FAISS, Groq, and Tavily. Users can upload their own files, build a vector index, ask questions over those documents, and optionally combine document retrieval with live web search results.
+A practical Retrieval-Augmented Generation (RAG) application where users can upload their own files, build a FAISS vector index, ask grounded questions over those documents, and optionally combine that document context with live Tavily web search.
 
 ## Live Demo
 
-- Live app: [Hugging Face Space](https://huggingface.co/spaces/NitinSharmaDS/Rag_With_Tavily)
+- Hugging Face Space: [Uploaded Files RAG](https://huggingface.co/spaces/NitinSharmaDS/Rag_With_Tavily)
 
-## Project Overview
+## Why This Project
 
-This project focuses on Retrieval-Augmented Generation by allowing users to:
+Large language models do not automatically know what is inside your private files. This project solves that problem by:
 
-- upload their own documents
-- convert document content into embeddings
-- store and retrieve chunks through FAISS
-- generate grounded answers from retrieved context
-- optionally enrich responses with Tavily-powered web search
+- accepting user-uploaded documents
+- splitting them into chunks
+- converting those chunks into embeddings
+- storing them in a FAISS vector index
+- retrieving relevant context for each question
+- generating grounded answers with Groq
+- optionally enriching responses with Tavily web search
 
-It is designed as a practical RAG portfolio project that shows both document retrieval and real-world deployment.
+This makes the project useful both as a portfolio RAG demo and as a simple end-to-end reference for document-grounded AI apps.
 
 ## Features
 
-- Upload PDF, DOCX, Markdown, and TXT files
-- Build a FAISS vector index from uploaded documents
-- Ask grounded questions over your own files
-- View retrieved source files and context chunks
-- Search the web with Tavily for broader answers
-- Combine uploaded document context with web results
-- Run locally with Streamlit or deploy via Docker on Hugging Face Spaces
+- Upload `PDF`, `DOCX`, `MD`, and `TXT` files
+- Save uploaded files into the app workspace
+- Build a FAISS index from uploaded content
+- Ask questions in the `Ask My Documents` tab
+- See the answer, supporting source file names, and retrieved chunks
+- Use the `Ask AI (Web)` tab for Tavily-powered web search
+- Optionally combine uploaded document context with live web results
+- Run locally with Streamlit or deploy on Hugging Face Spaces with Docker
 
 ## Tech Stack
 
@@ -45,41 +48,63 @@ It is designed as a practical RAG portfolio project that shows both document ret
 - Streamlit
 - LangChain
 - FAISS
-- Hugging Face sentence-transformer embeddings
-- Groq LLM
+- Hugging Face Embeddings
+- Groq
 - Tavily Search
+- BeautifulSoup + Requests
 - Docker
 - Hugging Face Spaces
 
-## Problem Statement
-
-Many users want to ask questions over their own files, but a standard LLM does not automatically know the contents of those documents. This project solves that by turning uploaded files into searchable vector representations and using retrieval to ground the final answer in relevant context.
-
 ## How It Works
-
-The app follows a simple RAG workflow:
 
 ```mermaid
 flowchart TD
-    A["Upload documents"] --> B["Parse file contents"]
-    B --> C["Split text into chunks"]
-    C --> D["Generate embeddings"]
-    D --> E["Store vectors in FAISS"]
-    E --> F["User asks a question"]
-    F --> G["Retrieve top matching chunks"]
-    G --> H["Groq generates grounded answer"]
-    H --> I["Show answer, sources, and context"]
-    F --> J["Optional Tavily web search"]
-    J --> H
+    A[Upload documents] --> B[Save files locally]
+    B --> C[Load and parse content]
+    C --> D[Split into chunks]
+    D --> E[Create embeddings]
+    E --> F[Store vectors in FAISS]
+    F --> G[Ask a question]
+    G --> H[Retrieve top matching chunks]
+    H --> I[Generate answer with Groq]
+    I --> J[Show answer, sources, and context chunks]
+    G --> K[Optional Tavily web search]
+    K --> I
 ```
 
-## Example User Flow
+## App Workflow
 
-1. Upload one or more supported files.
-2. Click `Build Index` to create the FAISS store.
-3. Ask a question in the document tab.
-4. Review the grounded answer and retrieved source chunks.
-5. Optionally use the web search tab to combine live web results with uploaded document context.
+1. Upload one or more files.
+2. Click `Save Files`.
+3. Click `Build Index` to create the vector store.
+4. Ask a question in `Ask My Documents` for grounded file-based answers.
+5. Switch to `Ask AI (Web)` if you want live web search, optionally combined with your uploaded documents.
+
+## Screenshots
+
+### 1. Upload and manage files
+
+Users can upload supported files, save them, and see the uploaded file list in the left panel.
+
+![Upload and manage files](assets/screenshots/01-home-upload.png)
+
+### 2. Build the index
+
+After clicking `Build Index`, the app processes the uploaded files and shows a success message with the number of chunks indexed.
+
+![Build index success](assets/screenshots/02-index-built.png)
+
+### 3. Ask questions over uploaded documents
+
+The `Ask My Documents` tab returns an answer grounded in the indexed files and also shows the source file plus retrieved context chunks.
+
+![RAG answer from uploaded documents](assets/screenshots/03-rag-answer.png)
+
+### 4. Ask AI using live web search
+
+The `Ask AI (Web)` tab uses Tavily to search the web, scrape source pages, and generate an answer with linked sources.
+
+![Web search answer](assets/screenshots/04-web-answer.png)
 
 ## Supported File Types
 
@@ -92,24 +117,26 @@ flowchart TD
 
 ```text
 Rag_project_hf/
-├── app.py                         # Streamlit app entrypoint
-├── Dockerfile                     # Docker deployment for Hugging Face Spaces
-├── requirements.txt               # Python dependencies
+├── app.py
+├── Dockerfile
+├── requirements.txt
+├── assets/
+│   └── screenshots/
 ├── src/
-│   ├── main.py                    # Main app loader
+│   ├── main.py
 │   ├── logic/
-│   │   ├── ingest.py              # Document loading, chunking, and FAISS indexing
-│   │   ├── rag.py                 # Retrieval and grounded answer generation
-│   │   └── web_search.py          # Tavily search and page scraping
+│   │   ├── ingest.py
+│   │   ├── rag.py
+│   │   └── web_search.py
 │   ├── ui/streamlitui/
-│   │   ├── loadui.py              # Main Streamlit layout
-│   │   ├── rag_tab.py             # Document Q&A tab
-│   │   └── web_tab.py             # Web search + hybrid answer tab
-│   └── utils/helpers.py           # Paths, embeddings, and vector store helpers
+│   │   ├── loadui.py
+│   │   ├── rag_tab.py
+│   │   └── web_tab.py
+│   └── utils/helpers.py
 └── README.md
 ```
 
-## Run Locally
+## Local Setup
 
 Install dependencies:
 
@@ -117,14 +144,14 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Create a `.env` file:
+Create a `.env` file in the project root:
 
 ```env
-GROQ_API_KEY=your_key_here
-TAVILY_API_KEY=your_key_here
+GROQ_API_KEY=your_groq_api_key
+TAVILY_API_KEY=your_tavily_api_key
 ```
 
-Optional configuration:
+Optional environment variables:
 
 ```env
 GROQ_MODEL=llama-3.1-8b-instant
@@ -134,19 +161,19 @@ CHUNK_SIZE=900
 CHUNK_OVERLAP=150
 ```
 
-Start the app:
+Run locally:
 
 ```bash
 streamlit run app.py
 ```
 
-Then open:
+Open the app at:
 
 ```text
 http://localhost:8501
 ```
 
-## Docker Run
+## Docker
 
 Build the image:
 
@@ -160,30 +187,31 @@ Run the container:
 docker run -p 7860:7860 --env-file .env uploaded-files-rag
 ```
 
-Then open:
+Open:
 
 ```text
 http://localhost:7860
 ```
 
-## Hugging Face Spaces
+## Hugging Face Spaces Deployment
 
-This project is configured as a Docker Space and runs Streamlit on port `7860`.
+This repository is configured as a Docker-based Hugging Face Space.
 
-Add these secrets in your Hugging Face Space settings:
+Required secrets:
 
 - `GROQ_API_KEY`
 - `TAVILY_API_KEY`
 
-The app stores uploaded files and generated FAISS data inside the runtime filesystem, so those artifacts should not be committed to the repository.
+Note: uploaded files and generated FAISS index data are created at runtime and should not be committed to the repository.
 
-## Challenges Solved
+## What This Project Demonstrates
 
-- building a practical document-grounded RAG workflow
-- handling multiple uploaded file formats
-- storing and reloading a local FAISS vector index
-- combining document retrieval with web search results
-- preparing a Streamlit AI app for Docker-based Hugging Face deployment
+- an end-to-end RAG workflow over private documents
+- file ingestion for multiple document formats
+- vector search with FAISS
+- grounded answer generation with Groq
+- hybrid document + web answer generation with Tavily
+- simple Streamlit deployment on Hugging Face Spaces
 
 ## License
 
