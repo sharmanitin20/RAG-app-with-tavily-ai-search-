@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import shutil
 from pathlib import Path
 
@@ -6,6 +7,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from src.logic.ingest import run_ingest_async
+from src.ui.streamlitui.eval_tab import render_eval_tab
 from src.ui.streamlitui.rag_tab import render_rag_tab
 from src.ui.streamlitui.uiconfig import Config
 from src.ui.streamlitui.web_tab import render_web_tab
@@ -25,19 +27,53 @@ class LoadStreamlitUI:
         ensure_app_dirs()
 
 
+    def _existing_hashes(self) -> dict[str, str]:
+        """Return {md5_hex: filename} for every file currently in UPLOAD_DIR."""
+        result = {}
+        for f in UPLOAD_DIR.iterdir():
+            if f.is_file() and not f.name.startswith("."):
+                result[hashlib.md5(f.read_bytes()).hexdigest()] = f.name
+        return result
+
     def _save_files(self, uploaded_files) -> list[str]:
         saved = []
+        # Pre-compute hashes of already-uploaded files so we can detect
+        # same-content uploads even when the filename differs.
+        seen_hashes: dict[str, str] = self._existing_hashes()
+
         for uploaded_file in uploaded_files:
             if not is_supported_file(uploaded_file.name):
-                st.error(f"Unsupported file type: {uploaded_file.name}")
+                st.error(f"Unsupported file type: `{uploaded_file.name}`")
                 continue
+
+            file_bytes = uploaded_file.getbuffer()
+            file_hash = hashlib.md5(file_bytes).hexdigest()
+
+            # ── Duplicate-content check (catches re-uploads & renamed copies) ──
+            if file_hash in seen_hashes:
+                existing_name = seen_hashes[file_hash]
+                if existing_name == sanitize_filename(uploaded_file.name):
+                    st.warning(f"⏭ Skipped `{uploaded_file.name}` — already uploaded.")
+                else:
+                    st.warning(
+                        f"⏭ Skipped `{uploaded_file.name}` — identical content already "
+                        f"exists as `{existing_name}`."
+                    )
+                continue
+
+            # ── Filename collision (different content, same sanitised name) ──
             safe_name = sanitize_filename(uploaded_file.name)
             target = UPLOAD_DIR / safe_name
-            counter = 1
-            while target.exists():
-                target = UPLOAD_DIR / f"{target.stem}_{counter}{target.suffix}"
-                counter += 1
-            target.write_bytes(uploaded_file.getbuffer())
+            if target.exists():
+                st.warning(
+                    f"⏭ Skipped `{uploaded_file.name}` — a file named `{safe_name}` "
+                    f"already exists with different content. Delete it first if you "
+                    f"want to replace it."
+                )
+                continue
+
+            target.write_bytes(file_bytes)
+            seen_hashes[file_hash] = safe_name   # track within this batch too
             saved.append(target.name)
         return saved
 
@@ -136,8 +172,12 @@ class LoadStreamlitUI:
 
 
     def _render_right_column(self):
-        tab_rag, tab_web = st.tabs(["📄 Ask My Documents", "🌐 Ask AI (Web)"])
+        tab_rag, tab_web, tab_eval = st.tabs(
+            ["📄 Ask My Documents", "🌐 Ask AI (Web)", "📊 Evaluation"]
+        )
         with tab_rag:
             render_rag_tab()
         with tab_web:
             render_web_tab()
+        with tab_eval:
+            render_eval_tab()

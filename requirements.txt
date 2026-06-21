@@ -1,4 +1,5 @@
 streamlit
+rank-bm25
 python-dotenv
 faiss-cpu
 sentence-transformers

@@ -8,6 +8,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 UPLOAD_DIR = PROJECT_ROOT / "uploads"
 STORAGE_DIR = PROJECT_ROOT / "storage"
 INDEX_DIR = STORAGE_DIR / "faiss_index"
+BM25_INDEX_PATH = STORAGE_DIR / "bm25_index.pkl"
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".md", ".txt"}
 
 def ensure_app_dirs() -> None:

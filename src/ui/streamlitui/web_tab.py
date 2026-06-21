@@ -83,7 +83,7 @@ def render_web_tab() -> None:
     doc_sources = []
     if use_doc_context and INDEX_DIR.exists():
         try:
-            _, doc_sources, doc_contexts = asyncio.run(answer_with_docs_async(web_query))
+            _, doc_sources, doc_contexts, _eval = asyncio.run(answer_with_docs_async(web_query))
         except Exception:
             pass
 

@@ -14,6 +14,7 @@ from langchain_community.document_loaders import (
 from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from src.logic.hybrid_retriever import build_bm25_index
 from src.utils.helpers import INDEX_DIR, UPLOAD_DIR, ensure_app_dirs, get_embeddings
 
 DATA_DIR = os.getenv("DATA_DIR", str(UPLOAD_DIR))
@@ -65,6 +66,8 @@ def _build_and_save_index(chunks: List[Document]) -> None:
     vector_store = FAISS.from_documents(chunks, get_embeddings())
     INDEX_DIR.parent.mkdir(parents=True, exist_ok=True)
     vector_store.save_local(str(INDEX_DIR))
+    # Build BM25 index alongside FAISS for hybrid retrieval
+    build_bm25_index(chunks)
 
 
 async def run_ingest_async() -> dict:
