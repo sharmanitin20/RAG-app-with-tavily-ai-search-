@@ -1,0 +1,37 @@
+name: Sync to Hugging Face Space
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # full history needed for orphan branch below
+
+      - name: Configure git
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+
+      - name: Push to Hugging Face Space (orphan — avoids binary history)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git remote add space https://NitinSharmaDS:$HF_TOKEN@huggingface.co/spaces/NitinSharmaDS/Rag_With_Tavily
+
+          # Create a clean single-commit branch (no binary files from old history)
+          git checkout --orphan hf_deploy
+          git add -A
+          git commit -m "deploy: $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push space hf_deploy:main --force
+
+          # Return to main (orphan branch is discarded — GitHub repo is untouched)
+          git checkout main
+          git branch -D hf_deploy
