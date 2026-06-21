@@ -26,9 +26,7 @@ class LoadStreamlitUI:
         self.config = Config()
         ensure_app_dirs()
 
-
     def _existing_hashes(self) -> dict[str, str]:
-        """Return {md5_hex: filename} for every file currently in UPLOAD_DIR."""
         result = {}
         for f in UPLOAD_DIR.iterdir():
             if f.is_file() and not f.name.startswith("."):
@@ -37,8 +35,6 @@ class LoadStreamlitUI:
 
     def _save_files(self, uploaded_files) -> list[str]:
         saved = []
-        # Pre-compute hashes of already-uploaded files so we can detect
-        # same-content uploads even when the filename differs.
         seen_hashes: dict[str, str] = self._existing_hashes()
 
         for uploaded_file in uploaded_files:
@@ -49,7 +45,6 @@ class LoadStreamlitUI:
             file_bytes = uploaded_file.getbuffer()
             file_hash = hashlib.md5(file_bytes).hexdigest()
 
-            # ── Duplicate-content check (catches re-uploads & renamed copies) ──
             if file_hash in seen_hashes:
                 existing_name = seen_hashes[file_hash]
                 if existing_name == sanitize_filename(uploaded_file.name):
@@ -61,19 +56,17 @@ class LoadStreamlitUI:
                     )
                 continue
 
-            # ── Filename collision (different content, same sanitised name) ──
             safe_name = sanitize_filename(uploaded_file.name)
             target = UPLOAD_DIR / safe_name
             if target.exists():
                 st.warning(
                     f"⏭ Skipped `{uploaded_file.name}` — a file named `{safe_name}` "
-                    f"already exists with different content. Delete it first if you "
-                    f"want to replace it."
+                    f"already exists with different content. Delete it first to replace it."
                 )
                 continue
 
             target.write_bytes(file_bytes)
-            seen_hashes[file_hash] = safe_name   # track within this batch too
+            seen_hashes[file_hash] = safe_name
             saved.append(target.name)
         return saved
 
@@ -93,56 +86,48 @@ class LoadStreamlitUI:
             shutil.rmtree(INDEX_DIR, ignore_errors=True)
         st.success(f"Deleted **{file_path.name}** and cleared index. Re-build to continue.")
 
-    # ── Render ───────────────────────────────────────────────────────────
+    def _index_status(self) -> tuple[bool, int]:
+        index_ready = INDEX_DIR.exists() and any(INDEX_DIR.iterdir())
+        file_count = len(self._list_uploads())
+        return index_ready, file_count
 
-    def render(self):
-        st.set_page_config(
-            page_title=self.config.get_page_title(),
-            layout="wide",
-            page_icon="📚",
-        )
-        st.header("🤖 " + self.config.get_page_title())
+    def _render_sidebar(self):
+        st.title("🧠 DocMind")
         st.caption(self.config.get_page_caption())
+        st.divider()
 
-        with st.sidebar:
-            st.subheader("Workflow")
-            st.info("1️⃣  Upload  →  2️⃣  Build Index  →  3️⃣  Ask")
-            st.divider()
-            st.caption("Deleting a file clears the index. Re-build after deleting.")
+        index_ready, file_count = self._index_status()
 
-        left, right = st.columns([1, 1.2], gap="large")
-        with left:
-            self._render_left_column()
-        with right:
-            self._render_right_column()
+        if index_ready and file_count > 0:
+            st.success(f"✅ Index ready · {file_count} file{'s' if file_count != 1 else ''}")
+        elif file_count > 0:
+            st.warning(f"⚠️ {file_count} file{'s' if file_count != 1 else ''} uploaded — build index to query")
+        else:
+            st.info("Upload files below, then build the index to start querying.")
 
+        st.divider()
+        st.subheader("📂 Files")
 
-    def _render_left_column(self):
-        st.subheader("📂 Upload & Manage Files")
-
-        files = st.file_uploader(
-            "Choose files (PDF, DOCX, MD, TXT)",
+        uploaded_files = st.file_uploader(
+            "PDF, DOCX, MD, TXT",
             accept_multiple_files=True,
         )
 
         if st.button("Save Files", use_container_width=True):
-            if files:
-                large = [f.name for f in files if f.size > 50 * 1024 * 1024]
+            if uploaded_files:
+                large = [f.name for f in uploaded_files if f.size > 50 * 1024 * 1024]
                 if large:
-                    st.warning(f"⚠️ Large file(s): {', '.join(large)} — batched indexing will handle it.")
-                saved = self._save_files(files)
+                    st.warning(f"⚠️ Large file(s): {', '.join(large)}")
+                saved = self._save_files(uploaded_files)
                 if saved:
                     st.success(f"Saved: {', '.join(saved)}")
+                    st.rerun()
             else:
                 st.warning("No files selected.")
 
-        st.divider()
-
-        st.markdown("**Files in upload folder:**")
         uploads = self._list_uploads()
-
         if not uploads:
-            st.info("No files uploaded yet.")
+            st.caption("No files yet.")
         else:
             for f in uploads:
                 col_name, col_btn = st.columns([3, 1])
@@ -155,23 +140,31 @@ class LoadStreamlitUI:
 
         if st.button("⚙️ Build Index", use_container_width=True, type="primary"):
             if not self._list_uploads():
-                st.warning("Upload at least one file before building the index.")
+                st.warning("Upload at least one file first.")
             else:
                 try:
                     with st.spinner("Indexing documents…"):
                         stats = asyncio.run(run_ingest_async())
                     if stats and stats.get("chunks", 0) > 0:
                         st.success(
-                            f"✅ Indexed **{stats['chunks']}** chunks "
-                            f"from **{stats['files']}** file(s)."
+                            f"✅ {stats['chunks']} chunks from {stats['files']} file(s)"
                         )
+                        st.rerun()
                     else:
-                        st.error("No content found — check that your files are readable.")
+                        st.error("No content found — check your files are readable.")
                 except Exception as e:
                     st.error(f"Indexing failed: {e}")
 
+    def render(self):
+        st.set_page_config(
+            page_title=self.config.get_page_title(),
+            layout="wide",
+            page_icon="🧠",
+        )
 
-    def _render_right_column(self):
+        with st.sidebar:
+            self._render_sidebar()
+
         tab_rag, tab_web, tab_eval = st.tabs(
             ["📄 Ask My Documents", "🌐 Ask AI (Web)", "📊 Evaluation"]
         )

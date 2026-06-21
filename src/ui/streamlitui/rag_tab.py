@@ -10,7 +10,7 @@ def render_rag_tab() -> None:
     st.subheader("Ask the RAG Agent")
     query = st.text_area(
         "Your question:",
-        placeholder="ASK A QUESTION?",
+        placeholder="Ask anything about your uploaded documents…",
         height=120,
         key="rag_query",
     )
@@ -33,7 +33,6 @@ def render_rag_tab() -> None:
                 st.error(str(e))
                 return
 
-        # Guardrail blocked the query
         if answer.startswith("⚠️ Query blocked:"):
             st.warning(answer)
             return
@@ -43,7 +42,7 @@ def render_rag_tab() -> None:
 
         if sources:
             st.markdown("---")
-            st.markdown("**📎 Context pulled from:**")
+            st.markdown("**📎 Sources:**")
             for src in sources:
                 st.markdown(f"- `{src}`")
 
@@ -53,14 +52,13 @@ def render_rag_tab() -> None:
                     st.markdown(f"**Chunk {i}:**")
                     st.text(chunk[:600] + ("…" if len(chunk) > 600 else ""))
 
-        # ── Inline eval scores ────────────────────────────────────────────────
         if eval_scores:
             with st.expander("📊 Quality scores for this answer"):
                 sc1, sc2, sc3 = st.columns(3)
-                sc1.metric("Faithfulness",      eval_scores["faithfulness"],
+                sc1.metric("Faithfulness", eval_scores["faithfulness"],
                            help="Are all claims supported by the retrieved context?")
                 sc2.metric("Context Relevancy", eval_scores["context_relevancy"],
                            help="Were the retrieved chunks relevant to your question?")
-                sc3.metric("Answer Relevance",  eval_scores["answer_relevance"],
+                sc3.metric("Answer Relevance", eval_scores["answer_relevance"],
                            help="Does the answer actually address your question?")
                 st.caption("Scores 0–1. Full history in the 📊 Evaluation tab.")

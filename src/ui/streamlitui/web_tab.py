@@ -30,9 +30,6 @@ def _call_llm(query: str, context: str) -> str:
     check_text = check_resp.content if isinstance(check_resp.content, str) else str(check_resp.content)
 
     supported, final_answer = _parse_check_response(check_text)
-
-    # For web tab: fall back to draft if groundedness check fails
-    # (web context is valid even if not in uploaded docs)
     return final_answer if supported else draft
 
 
@@ -40,7 +37,7 @@ def render_web_tab() -> None:
     st.subheader("Ask AI (Web Search)")
     st.caption(
         "Searches the web via Tavily, scrapes each page for real content, "
-        "combines with your documents, and shows every source used."
+        "and optionally combines with your uploaded documents."
     )
 
     web_query = st.text_area(
@@ -65,20 +62,17 @@ def render_web_tab() -> None:
 
     if not is_tavily_available():
         st.error(
-            "Tavily not set up. Run `pip install tavily-python` "
-            "and add `TAVILY_API_KEY` to your .env file."
+            "Tavily not configured. Add `TAVILY_API_KEY` to your .env file."
         )
         return
 
-    # ── Step 1: Web search + scrape ───────────────────────────────────────
-    with st.spinner("Searching and scraping the web…"):
+    with st.spinner("Searching the web…"):
         web_results = tavily_search(web_query)
 
     if not web_results:
         st.warning("No web results found. Check your TAVILY_API_KEY.")
         return
 
-    # ── Step 2: Optional doc context ─────────────────────────────────────
     doc_contexts = []
     doc_sources = []
     if use_doc_context and INDEX_DIR.exists():
@@ -87,7 +81,6 @@ def render_web_tab() -> None:
         except Exception:
             pass
 
-    # ── Step 3: Build context + call LLM ─────────────────────────────────
     combined_context = _build_combined_context(web_results, doc_contexts)
 
     with st.spinner("Generating answer…"):
@@ -97,12 +90,11 @@ def render_web_tab() -> None:
             st.error(f"LLM call failed: {e}")
             return
 
-    # ── Step 4: Display ───────────────────────────────────────────────────
     st.markdown("### 💬 Answer")
     st.markdown(final_answer)
 
     st.markdown("---")
-    st.markdown("**🌐 Generated using AI from these web sources:**")
+    st.markdown("**🌐 Web sources used:**")
     for r in web_results:
         title = r.get("title") or r.get("url", "Unknown")
         url = r.get("url", "#")
